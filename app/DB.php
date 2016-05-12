@@ -53,10 +53,12 @@ class DB
        (    
         id INT UNSIGNED PRIMARY KEY NOT NULL AUTO_INCREMENT,
         development_task_id INT NOT NULL,
-        action_sql TEXT NOT NULL
+        sql_value TEXT NOT NULL,
+        type VARCHAR(20) NOT NULL,
+        inserted_ID INT
        ) $charset_collate;
        ";
-        require_once( ABSPATH . 'wp-admin/includes/upgrade.php' );
+        require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
         dbDelta($sql);
     }
 
@@ -73,24 +75,87 @@ class DB
         task_name VARCHAR(60) NOT NULL
        ) $charset_collate;
        ";
-        require_once( ABSPATH . 'wp-admin/includes/upgrade.php' );
+        require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
         dbDelta($sql);
     }
-    public static function insertSqlHistory($taskId, $sql)
+
+    public static function insertSqlHistory($taskId, $sql, $type = null, $insertedId = null)
     {
         /** @var \wpdb $wpdb */
         global $wpdb;
-        $wpdb->insert(self::getHistoryTable(), [ "development_task_id" => $taskId, "action_sql" => $sql]);
+        if(isset($insertedId) && isset($type))
+        {
+            $wpdb->insert(self::getHistoryTable(), [
+                "development_task_id" => $taskId,
+                "sql_value"           => $sql,
+                "type"                => $type,
+                "inserted_ID"         => $insertedId
+            ]);
+        }
+        else if (isset($type)) {
+            $wpdb->insert(self::getHistoryTable(), [
+                "development_task_id" => $taskId,
+                "sql_value"           => $sql,
+                "type"                => $type
+            ]);
+        } else
+            $wpdb->insert(self::getHistoryTable(), [
+                "development_task_id" => $taskId,
+                "sql_value"           => $sql,
+                "type"                => "OTHER"
+            ]);
     }
+
     public static function insertNewTask($name)
     {
-        if($name == "")
+        if ($name == "")
             return false;
         /** @var \wpdb $wpdb */
         global $wpdb;
         $result = $wpdb->insert(self::getDevelopmentTaskTable(), ["task_name" => $name]);
-        if($result == false)
+        if ($result == false)
             return false;
         return true;
+    }
+
+    public static function deleteDevTask($id)
+    {
+        if ($id = "" || !is_numeric($id))
+            return false;
+        /** @var \wpdb $wpdb */
+        global $wpdb;
+        $result = $wpdb->delete(self::getDevelopmentTaskTable(), ["id" => $id]);
+        if ($result == false)
+            return false;
+        return true;
+    }
+
+    public static function getAllSqlHistory()
+    {
+        /** @var \wpdb $wpdb */
+        global $wpdb;
+        $deploymentHistoryTable = self::getHistoryTable();
+        $developmentTaskId = Options::getCurentDevTask()->id;
+        $rows = $wpdb->get_results("SELECT * FROM {$deploymentHistoryTable} WHERE development_task_id = {$developmentTaskId}");
+        return $rows;
+    }
+    public static function getAllSqlHistoryAsArrays()
+    {
+        /** @var \wpdb $wpdb */
+        global $wpdb;
+        $deploymentHistoryTable = self::getHistoryTable();
+        $developmentTaskId = Options::getCurentDevTask()->id;
+        $rows = $wpdb->get_results("SELECT * FROM {$deploymentHistoryTable} WHERE development_task_id = {$developmentTaskId}", "ARRAY_A");
+        return $rows;
+    }
+
+    public static function getAllSqlHistoryValues()
+    {
+        /** @var \wpdb $wpdb */
+        global $wpdb;
+        $deploymentHistoryTable = self::getHistoryTable();
+        $developmentTaskId = Options::getCurentDevTask()->id;
+        $rows = $wpdb->get_results("SELECT sql_value as value FROM {$deploymentHistoryTable} WHERE development_task_id = {$developmentTaskId}");
+        return $rows;
     }
 }

@@ -8,6 +8,11 @@
 
 namespace wp_db_deployment\app\admin;
 
+use wp_db_deployment\app\admin\actions\DeleteTaskAction;
+use wp_db_deployment\app\admin\actions\ExportTaskChangesAction;
+use wp_db_deployment\app\admin\actions\ImportTaskAction;
+use wp_db_deployment\app\admin\actions\SaveCurrentTaskAction;
+use wp_db_deployment\app\admin\actions\SaveNewTaskAction;
 use wp_db_deployment\app\DB;
 use wp_db_deployment\app\Main;
 use wp_db_deployment\app\Options;
@@ -15,11 +20,21 @@ use wp_db_deployment\app\Options;
 class AdminPage
 {
 
-
+    public $saveCurrentTask;
+    public $saveNewTask;
+    public $deleteTask;
+    public $exportTaskChanges;
+    public $importTaskChanges;
     public static $optionsPageUri = "wp-db-deployment-options";
 
     function __construct()
     {
+        $this->saveCurrentTask = new SaveCurrentTaskAction();
+        $this->saveNewTask = new SaveNewTaskAction();
+        $this->deleteTask = new DeleteTaskAction();
+        $this->exportTaskChanges = new ExportTaskChangesAction();
+        $this->importTaskChanges = new ImportTaskAction();
+//        $this->exportTaskChanges
     }
 
     public function hookMenu()
@@ -49,42 +64,7 @@ class AdminPage
         //register our settings
 
     }
-
-    public function handleSaveNewDevTask()
-    {
-        if (!isset($_POST["new_task"]))
-            die("no data given");
-        $newTask = $_POST["new_task"];
-        $this->redirectToOptionWithMessage( DB::insertNewTask($newTask));
-    }
-
-    public function handleSaveCurrentDevTask()
-    {
-        if (!isset($_POST["current_task"]))
-            die("no data given");
-        $currentTask = $_POST["current_task"];
-        Options::setCurrentDevTask($currentTask);
-        $this->redirectToOptionWithMessage(true);
-    }
-
-    /**
-     * @param bool   $successful
-     * @param string $messageIfSuccessful
-     * @param string $messageIfNot
-     *
-     * @internal param string $message
-     */
-    public function redirectToOptionWithMessage($successful, $messageIfSuccessful = 'Setting Successfully Saved', $messageIfNot = 'Validation Failed')
-    {
-        $url = "";
-        if ($successful)
-            $url = site_url('wp-admin/options-general.php?page=' . self::$optionsPageUri . '&settings-updated=true&message=' . urlencode($messageIfSuccessful));
-        else {
-            $url = site_url('wp-admin/options-general.php?page=' . self::$optionsPageUri . '&settings-updated=false&message=' . urlencode($messageIfNot));
-        }
-        wp_redirect($url);
-    }
-
+    
     public function settingsPage()
     {
         if (!current_user_can('manage_options')) {
@@ -96,7 +76,7 @@ class AdminPage
         <div class="wrap">
             <h2>WP DB Deploymenet Settings</h2>
 
-            <form method="post" action="admin-post.php">
+            <form id="wp_db_deplyment_save_current_dev_Task" method="post" action="admin-post.php">
                 <input type="hidden" name="action" value="wp_db_deployment_save_current_dev_task"/>
                 <table class="form-table">
                     <tr valign="top">
@@ -139,6 +119,20 @@ class AdminPage
 
                 <?php submit_button('Add Developer Task'); ?>
 
+            </form>
+
+            <h2>Export changes from current task</h2>
+            <form method="post" action="admin-post.php">
+                <input type="hidden" name="action" value="wp_db_deployment_export_dev_task"/>
+                <?php submit_button('Export'); ?>
+
+            </form>
+
+            <h2>Import Changes</h2>
+            <form method="post" action="admin-post.php" enctype="multipart/form-data" >
+                <input type="hidden" name="action" value="wp_db_deployment_import_dev_task"/>
+                <input type="file" name="import_file" />
+                <?php submit_button('Import'); ?>
             </form>
         </div>
     <?php }

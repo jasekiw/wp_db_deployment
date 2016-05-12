@@ -8,33 +8,82 @@
 
 namespace wp_db_deployment\app;
 
+use PHPSQLParser\PHPSQLParser;
+
 class DBFilter
 {
+
+    public static $queryCount = 0;
+    public static $getLastInsertId = false;
+    public static $lastHistoryId = 0;
 
     function __construct()
     {
     }
 
+    /**
+     * Query hook just before Query
+     *
+     * @param string $sql
+     *
+     * @return string
+     */
     public function filterQuery($sql)
     {
-        if($this->shouldIgnore($sql))
+        self::checkLastInsertId();
+        if (strpos($sql, "mushrooms") !== false) {
+            $test = "";
+        }
+        $parser = new PHPSQLParser();
+        $result = $parser->parse($sql, true);
+        self::$queryCount++;
+        if ($this->shouldIgnore($sql))
             return $sql;
         $devTask = Options::getCurentDevTask();
-        DB::insertSqlHistory($devTask->id, $sql);
+        $isInsert = $this->isInsert($sql);
+        if ($isInsert) {
+            DB::insertSqlHistory($devTask->id, $sql, "INSERT");
+            /** @var \wpdb $wpdb */
+            global $wpdb;
+            self::$lastHistoryId = $wpdb->insert_id;
+            self::$getLastInsertId = true;
+        } else
+            DB::insertSqlHistory($devTask->id, $sql);
+
         return $sql;
+    }
+
+    public static function checkLastInsertId()
+    {
+        if (!self::$getLastInsertId)
+            return;
+
+        /** @var \wpdb $wpdb */
+        global $wpdb;
+        $new_insert_id = $wpdb->insert_id;
+        self::$getLastInsertId = false;
+        $wpdb->update(DB::getHistoryTable(), ["inserted_ID" => $new_insert_id], ['id' => self::$lastHistoryId]);
+    }
+
+    public function isInsert($sql)
+    {
+        if (strpos(strtoupper($sql), "INSERT ") !== false)
+            return true;
+        return false;
     }
 
     /**
      * determins if the sql should be ignored by the plugin
+     *
      * @param string $sql
      *
      * @return bool
      */
     protected function shouldIgnore($sql)
     {
-        if(strpos(strtoupper($sql),"SELECT ") !== false )
+        if (strpos(strtoupper($sql), "SELECT ") !== false)
             return true;
-        if(strpos(strtoupper($sql),"SHOW FULL COLUMNS FROM") !== false )
+        if (strpos(strtoupper($sql), "SHOW FULL COLUMNS FROM") !== false)
             return true;
         $tables = $this->getTables($sql);
         if (in_array('options', $tables) && strpos($sql, Options::$optionsName) !== false)
@@ -80,7 +129,7 @@ class DBFilter
      *
      * @return string[]
      */
-    protected function getTables($sql)
+    public function getTables($sql)
     {
         $matches = [];
         preg_match_all('/(?<=from|join|into|update)\s+`?(\w+\b)`?/i', $sql, $matches);
@@ -88,6 +137,13 @@ class DBFilter
         foreach ($matches[1] as $tableName)
             $tableNames[] = $this->getUnprefixedTableName(trim($tableName));
         return $tableNames;
+    }
+    
+    /**
+     * @param string $sql
+     */
+    public function getColumns($sql)
+    {
     }
 
     /**

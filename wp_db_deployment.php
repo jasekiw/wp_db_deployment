@@ -10,8 +10,18 @@ License: GPLv2 or later
 Text Domain: wp-db-deployment
 */
 defined( 'ABSPATH' ) or die( 'No script kiddies please!' );
-define('WP_DB_DEPLOYMENT_ENTRY', __FILE__);
+
+/**
+ * autoload
+ */
 require_once(dirname(__FILE__) . DIRECTORY_SEPARATOR . "vendor" . DIRECTORY_SEPARATOR . "autoload.php");
+/**
+ * activaton and deactivation hooks
+ */
 register_activation_hook( __FILE__, array( 'wp_db_deployment\app\Main', 'plugin_activation' ) );
 register_deactivation_hook( __FILE__, array( 'wp_db_deployment\app\Main', 'plugin_deactivation' ) );
+
+/**
+ * boot up plugin
+ */
 add_action( 'init', array( 'wp_db_deployment\app\Main', 'init' ) );

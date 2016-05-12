@@ -3,15 +3,14 @@
   "description": "db deployment plugin",
   "minimum-stability": "dev",
   "license": "proprietary",
-  "autoload": {
-    "psr-4": {
-      "wp_db_deployment\\app\\": "app/"
-    }
-  },
+
   "authors": [
     {
       "name": "Jason Gallavin",
       "email": "jasongallavin@gmail.com"
     }
-  ]
+  ],
+  "require": {
+    "greenlion/php-sql-parser": "^4.0"
+  }
 }
